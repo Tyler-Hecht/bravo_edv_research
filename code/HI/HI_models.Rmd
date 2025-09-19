@@ -1,0 +1,126 @@
+```{r message=TRUE}
+library(glmmTMB)
+library(tidyverse)
+edv <- read.csv("C:/Users/baois/Desktop/URES/ed_data.csv")
+hi <- read.csv("C:/Users/baois/Desktop/URES/uresw5/region_daily_weighted_heat_index.csv")
+str(edv)
+str(hi)
+
+edv <- edv %>%
+  mutate(Region = as.integer(str_remove(geo, "Region")),
+         Date = as.Date(as.character(temporal), format = "%Y%m%d")) %>%
+  select(Region, Date, dataValue) %>%
+  rename(ed_visits = dataValue)
+hi <- hi %>%
+  rename(Region = HHS.Region, heat_index = Region_Weighted_Heat_Index) %>%
+  mutate(Date = as.Date(Date)) 
+
+merged <- edv %>%
+  right_join(hi)
+str(merged)
+```
+
+Testing random effect of seasonality
+
+```{r}
+merged <- merged %>%
+  mutate(
+    day_of_year = yday(Date),
+    sin_doy = sin(2 * pi * day_of_year / 365),
+    cos_doy = cos(2 * pi * day_of_year / 365)
+  )
+#fix seasonal 
+model_fixed <- glmmTMB(
+  ed_visits ~ sin_doy + cos_doy,
+  family = nbinom2(link = "log"),
+  data = merged
+)
+#mix seasonal
+model_random <- glmmTMB(
+  ed_visits ~ sin_doy + cos_doy + (1 + sin_doy + cos_doy | Region),
+  family = nbinom2(link = "log"), #convergence warning, but can still run
+  data = merged
+)
+
+anova(model_fixed, model_random)
+
+```
+
+p \< 0.05, random effect is significant
+
+Testing random effect of heat index
+
+```{r}
+merged <- merged %>%
+  arrange(Region, Date) %>%
+  group_by(Region) %>%
+  mutate(lag10_heat = lag(heat_index, n = 10)) %>%
+  ungroup()
+#mix seasonal + fix heat
+model_fixed_heat <- glmmTMB(
+  ed_visits ~ sin_doy + cos_doy + lag10_heat + (1 + sin_doy + cos_doy | Region),
+  family = nbinom2(link = "log"),
+  data = merged
+)
+#mix seasonal + mix heat 
+model_random_heat <- glmmTMB(
+  ed_visits ~ sin_doy + cos_doy + lag10_heat + (1 + sin_doy + cos_doy + lag10_heat | Region),
+  family = nbinom2(link = "log"),
+  data = merged
+)
+
+anova(model_fixed_heat, model_random_heat)
+summary(model_fixed_heat)
+str(merged)
+```
+
+We are still missing fix heat only, random heat only and fix seasonal + fix heat models
+
+We'll add them and compare all together
+
+```{r}
+model_random_intercept <- glmmTMB(
+  ed_visits ~ sin_doy + cos_doy + (1| Region),
+  family = nbinom2(link = "log"),
+  data = merged
+)
+
+model_only_heat_fixed <- glmmTMB(
+  ed_visits ~ lag10_heat,
+  family = nbinom2(link = "log"),
+  data = merged
+)
+
+model_only_heat_random <- glmmTMB(
+  ed_visits ~ lag10_heat + (1 + lag10_heat | Region),
+  family = nbinom2(link = "log"),
+  data = merged
+)
+
+model_fixed_season_fixed_heat <- glmmTMB(
+  ed_visits ~ sin_doy + cos_doy + lag10_heat,
+  family = nbinom2(link = "log"),
+  data = merged
+)
+
+aic_results <- AIC(
+  model_only_heat_fixed, 
+  model_only_heat_random, 
+  model_fixed, 
+  model_random,
+  model_fixed_season_fixed_heat, 
+  model_fixed_heat, 
+  model_random_heat,     
+  model_random_intercept
+)
+
+aic_df <- as.data.frame(aic_results)
+aic_df %>%
+  arrange(AIC)
+```
+
+select glmmtmb family
+
+add a random intercept ie. (1 \| Region)
+
+lag selection and pre whitening one of edv and hi(read Time Series Analysis and Its Applications example 5.8)

@@ -1,0 +1,251 @@
+---
+title: "HI_models_agg"
+output: html_document
+date: "2025-04-14"
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(glmmTMB)
+library(tidyverse)
+library(performance)
+edv <- read.csv("C:/Users/baois/Desktop/URES/ed_data.csv")
+hi <- read.csv("C:/Users/baois/Desktop/URES/uresw5/region_daily_weighted_heat_index.csv")
+str(edv)
+str(hi)
+
+edv <- edv %>%
+  mutate(Region = as.integer(str_remove(geo, "Region")),
+         Date = as.Date(as.character(temporal), format = "%Y%m%d")) %>%
+  select(Region, Date, dataValue) %>%
+  rename(ed_visits = dataValue)
+hi <- hi %>%
+  rename(Region = HHS.Region, heat_index = Region_Weighted_Heat_Index) %>%
+  mutate(Date = as.Date(Date)) 
+
+merged <- edv %>%
+  inner_join(hi, by = c("Region", "Date"))
+str(merged)
+
+merged <- merged %>%
+  mutate(
+    day_of_year = yday(Date),
+    sin_doy = sin(2 * pi * day_of_year / 365),
+    cos_doy = cos(2 * pi * day_of_year / 365)
+  )
+
+race <- read.csv("C:/Users/baois/Desktop/URES/df_nonwhite.csv")
+forest <- read.csv("C:/Users/baois/Desktop/URES/df_forest.csv")
+forest <- forest %>%
+    filter(`Forest.Type` == "Total Forest")
+vulnerbilities <- race %>%
+    left_join(forest, by = "HHS.Region") %>%
+    select("HHS.Region", "nonwhite_percentage", "Forest.Coverage")
+elder <- read.csv("C:/Users/baois/Desktop/URES/df_elderly.csv")
+elder <- elder %>%
+  group_by(`HHS.Region`) %>%
+  summarise(eldery_percentage = mean(eldery_percentage))
+vulnerbilities <- vulnerbilities %>%
+  left_join(elder, by = "HHS.Region") %>%
+  rename(Region = HHS.Region)
+merged <- left_join(merged, vulnerbilities, by = "Region")
+str(merged)
+```
+
+```{r}
+library(glmmTMB)
+formulas <- c(
+  "ed_visits ~ sin_doy + cos_doy + (1 | Region)",  
+  "ed_visits ~ sin_doy + cos_doy + (sin_doy + cos_doy + 1 | Region)",  
+  "ed_visits ~ heat_index + (1 | Region)",
+  "ed_visits ~ heat_index + (heat_index + 1 | Region)",
+  "ed_visits ~ sin_doy + cos_doy + heat_index + (1 | Region)",  
+  "ed_visits ~ sin_doy + cos_doy + heat_index + (heat_index + 1 | Region)",  
+  "ed_visits ~ sin_doy + cos_doy + heat_index + (sin_doy + cos_doy+ 1 | Region)",  
+  "ed_visits ~ sin_doy + cos_doy + heat_index + (heat_index + sin_doy + cos_doy + 1 | Region)",  
+
+  # Models with vulnerbilities as fixed 
+  "ed_visits ~ sin_doy + cos_doy + heat_index + nonwhite_percentage + Forest.Coverage + eldery_percentage + (heat_index + 1 | Region)", 
+  "ed_visits ~ sin_doy + cos_doy + heat_index + nonwhite_percentage + Forest.Coverage + eldery_percentage + (sin_doy + cos_doy + 1 | Region)",
+  "ed_visits ~ sin_doy + cos_doy + heat_index + nonwhite_percentage + Forest.Coverage + eldery_percentage + (heat_index + sin_doy + cos_doy + 1 | Region)"
+)
+
+families <- list(
+  nbinom2 = nbinom2(link = "log"),
+  poisson = poisson(link = "log")
+)
+
+
+```
+
+```{r}
+set.seed(777)
+n <- nrow(merged)
+train_n <- floor(0.8 * n)
+merged <- merged[order(merged$Date), ]
+
+train_data <- merged[1:train_n, ]
+test_data <- merged[(train_n + 1):n, ]
+
+results <- data.frame(
+  formula = character(),
+  family = character(),
+  AIC = numeric(),
+  BIC = numeric(),
+  deviance = numeric(),
+  MSE = numeric(),
+  ICC_adjusted = numeric(),
+  ICC_unadjusted = numeric()
+)
+
+# count <- 0
+
+for (fam_name in names(families)) {
+  fam_obj <- families[[fam_name]]
+
+  for (fml in formulas) {
+    model <- glmmTMB(as.formula(fml), family = fam_obj, data = train_data)
+
+    preds <- predict(model, newdata = test_data, type = "response")
+    actual <- test_data$ed_visits
+    mse <- mean((preds - actual)^2)
+
+    icc_vals <- tryCatch(
+      performance::icc(model), 
+      error = function(e) NA
+    )
+    
+    icc_adjusted <- if (is.data.frame(icc_vals)) icc_vals$ICC_adjusted else NA
+    icc_unadjusted <- if (is.data.frame(icc_vals)) icc_vals$ICC_conditional else NA
+
+    results <- results |> add_row(
+      formula = fml,
+      family = fam_name,
+      AIC = AIC(model),
+      BIC = BIC(model),
+      deviance = deviance(model),
+      MSE = mse,
+      ICC_adjusted = icc_adjusted,
+      ICC_unadjusted = icc_unadjusted
+    )
+    # count <- count + 1     
+    # if (count == 3) {
+    #   break                
+    # }
+  }
+}
+
+results <- results |> arrange(MSE)
+results
+results |> arrange(BIC)
+
+```
+
+|  |
+|:-----------------------------------------------------------------------|
+| ed_visits \~ sin_doy + cos_doy + (heat_index + sin_doy + cos_doy + 1 \| Region) yields best result |
+
+```{r}
+# Poisson 
+model1 <- glmmTMB(
+  ed_visits ~ sin_doy + cos_doy + heat_index + (heat_index + 1 | Region),
+  family = poisson(link = "log"),
+  data = train_data
+)
+performance::icc(model1)
+
+df <- performance::icc(model1)
+is.data.frame(df)
+df$ICC_adjusted
+df$ICC_conditional
+
+
+pred1 <- predict(model1, newdata = test_data, type = "response", se.fit = TRUE)
+
+ci_lower1 <- pred1$fit - 1.96 * pred1$se.fit
+ci_upper1 <- pred1$fit + 1.96 * pred1$se.fit
+
+library(ggplot2)
+test_data$pred1 <- pred1$fit
+test_data$lower1 <- ci_lower1
+test_data$upper1 <- ci_upper1
+
+ggplot(test_data, aes(x = Date, y = ed_visits)) +
+  geom_point(alpha = 0.3) +
+  geom_line(aes(y = pred1), color = "blue") +
+  geom_ribbon(aes(ymin = lower1, ymax = upper1), alpha = 0.1, fill = "blue") +
+  ggtitle("Poisson: Predicted ED Visits with 95% CI") +
+  theme_minimal()
+
+ggplot(test_data, aes(x = Date, y = ed_visits)) +
+  geom_point(alpha = 0.3) +
+  geom_line(aes(y = pred1), color = "blue") +
+  geom_ribbon(aes(ymin = lower1, ymax = upper1), alpha = 0.1, fill = "blue") +
+  facet_wrap(~ Region, nrow = 5) +  # One panel per region
+  ggtitle("Poisson: Predicted ED Visits with 95% CI by Region") +
+  theme_minimal()
+```
+
+```{r}
+# Nbinom 
+model2 <- glmmTMB(
+  ed_visits ~ sin_doy + cos_doy + heat_index + (heat_index + sin_doy + cos_doy + 1 | Region)	,
+  family = nbinom2(link = "log"),
+  data = train_data
+)
+icc2 <- icc(model2)
+icc2$ICC_adjusted
+pred2 <- predict(model2, newdata = test_data, type = "response", se.fit = TRUE)
+
+ci_lower2 <- pred2$fit - 1.96 * pred2$se.fit
+ci_upper2 <- pred2$fit + 1.96 * pred2$se.fit
+
+test_data$pred2 <- pred2$fit
+test_data$lower2 <- ci_lower2
+test_data$upper2 <- ci_upper2
+
+ggplot(test_data, aes(x = Date, y = ed_visits)) +
+  geom_point(alpha = 0.3) +
+  geom_line(aes(y = pred2), color = "blue") +
+  geom_ribbon(aes(ymin = lower2, ymax = upper2), alpha = 0.1, fill = "blue") +
+  ggtitle("Negative Binomial: Predicted ED Visits with 95% CI") +
+  theme_minimal()
+
+ggplot(test_data, aes(x = Date, y = ed_visits)) +
+  geom_point(alpha = 0.3) +
+  geom_line(aes(y = pred2), color = "blue") +
+  geom_ribbon(aes(ymin = lower2, ymax = upper2), alpha = 0.1, fill = "blue") +
+  facet_wrap(~ Region, nrow = 5) +  # One panel per region
+  ggtitle("Negative Binomial: Predicted ED Visits with 95% CI by Region") +
+  theme_minimal()
+```
+
+```{r}
+library(glmmTMB)
+full_model <- glmmTMB(
+  ed_visits ~ sin_doy + cos_doy + heat_index + nonwhite_percentage + Forest.Coverage + eldery_percentage + (heat_index + sin_doy + cos_doy + 1 | Region),
+  family = nbinom2(link = "log"),
+  data = train_data
+)
+simple_model <- glmmTMB(
+  ed_visits ~ sin_doy + cos_doy + heat_index + (heat_index + sin_doy + cos_doy + 1 | Region),
+  family = nbinom2(link = "log"),
+  data = train_data
+)
+anova(simple_model, full_model)
+```
+
+Shared slide between temp and HI model on seasonality and modeling
+
+Individual slides on the model reuslt
+
+Also include peak and amplitute and .....
+
+Go on **Master References Review Status.gsheet** in the box for lit
+reviews

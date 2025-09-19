@@ -1,0 +1,20 @@
+```{r}
+library(glmmTMB)
+library(tidyverse)
+edv <- read.csv("C:/Users/baois/Desktop/URES/ed_data.csv")
+hi <- read.csv("C:/Users/baois/Desktop/URES/uresw5/region_daily_weighted_heat_index.csv")
+str(edv)
+str(hi)
+
+edv <- edv %>%
+  mutate(Region = as.integer(str_remove(geo, "Region")),
+         Date = as.Date(as.character(temporal), format = "%Y%m%d")) %>%
+  select(Region, Date, dataValue) %>%
+  rename(ed_visits = dataValue)
+hi <- hi %>%
+  rename(Region = HHS.Region, heat_index = Region_Weighted_Heat_Index) %>%
+  mutate(Date = as.Date(Date)) 
+
+merged <- edv %>%
+  right_join(hi)
+str(merged)
