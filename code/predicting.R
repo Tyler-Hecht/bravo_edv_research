@@ -7,12 +7,17 @@ library(this.path)
 
 setwd(this.path::here())
 
-EDV.INPUT.FILE <- "../data/regional_edv_data.csv"
-TEMP.INPUT.FILE <- "../data/regional_temp_data.csv"
-HI.INPUT.FILE <- "../data/regional_hi_data.csv"
+EDV.INPUT.FILE <- "../data/edv/regional_edv_data.csv"
+TEMP.INPUT.FILE <- "../data/temperature/regional_temp_data.csv"
+HI.INPUT.FILE <- "../data/heat_index/regional_hi_data.csv"
 
-COVARIATE <-"temp" # temp or heat.index
-PLOT.OUTPUT.FILE <- paste("../plots/predictions_", COVARIATE, ".png", sep = "")
+START.DATE <- as.Date("2018-01-01")
+END.DATE <- as.Date("2022-12-31")
+
+COVARIATE <- "temp" # temp or heat.index
+PLOT.OUTPUT.FILE <- paste("../plots/predictions_", START.DATE, "_", END.DATE, "_", COVARIATE, ".png", sep = "")
+
+
 
 if (COVARIATE == "temp") {
   X.INPUT.FILE <- TEMP.INPUT.FILE
@@ -26,11 +31,11 @@ FAMILY <- poisson()
 
 # read in data
 edv <- read.csv(EDV.INPUT.FILE, row.names = 1)
+edv <- edv[(START.DATE <= as.Date(rownames(edv))) & (as.Date(rownames(edv)) <= END.DATE),] # filter to date range
 edv$t <- 1:nrow(edv) # assign time column while still in long format
 
 X <- read.csv(X.INPUT.FILE, row.names = 1)
-
-stopifnot(nrow(X) == nrow(edv))
+X <- X[(START.DATE <= as.Date(rownames(X))) & (as.Date(rownames(X)) <= END.DATE),] # filter to date range
 
 # wide to long format
 X <- pivot_longer(X, cols=colnames(X), names_to = "region", values_to = COVARIATE)
