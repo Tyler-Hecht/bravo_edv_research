@@ -14,8 +14,20 @@ HI.INPUT.FILE <- "../data/heat_index/regional_hi_data.csv"
 START.DATE <- as.Date("2018-01-01")
 END.DATE <- as.Date("2022-12-31")
 
+formulas <- c(
+  "ed.visits ~ sine + cosine + (1|region)", # model 1
+  "ed.visits ~ sine + cosine + (sine+cosine+1|region)", # model 2
+  "ed.visits ~ sine + cosine + X + (1|region)", # model 3
+  "ed.visits ~ sine + cosine + X + (X+1|region)", # model 4
+  "ed.visits ~ sine + cosine + X + (sine+cosine+1|region)", # model 5
+  "ed.visits ~ sine + cosine + X + (X+sine+cosine+1|region)" # model 6 (full)
+)
+
+SPLIT <- 0.8
+FORMULA.NUM <- 3
+
 COVARIATE <- "temp" # temp or heat.index
-PLOT.OUTPUT.FILE <- paste("../plots/predictions_", START.DATE, "_", END.DATE, "_", COVARIATE, ".png", sep = "")
+PLOT.OUTPUT.FILE <- paste(paste("../plots/predictions", COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), ".png", sep="")
 
 
 
@@ -28,6 +40,7 @@ if (COVARIATE == "temp") {
 }
 
 FAMILY <- poisson()
+FORMULA <- as.formula(formulas[FORMULA.NUM])
 
 # read in data
 edv <- read.csv(EDV.INPUT.FILE, row.names = 1)
@@ -46,18 +59,6 @@ edv$X <- X[[COVARIATE]]
 phi <- 2*pi/365.25
 edv$sine <- sin(phi*edv$t)
 edv$cosine <- cos(phi*edv$t)
-
-formulas <- c(
-  "ed.visits ~ sine + cosine + (1|region)", # model 1
-  "ed.visits ~ sine + cosine + (sine+cosine+1|region)", # model 2
-  "ed.visits ~ sine + cosine + X + (1|region)", # model 3
-  "ed.visits ~ sine + cosine + X + (X+1|region)", # model 4
-  "ed.visits ~ sine + cosine + X + (sine+cosine+1|region)", # model 5
-  "ed.visits ~ sine + cosine + X + (X+sine+cosine+1|region)" # model 6 (full)
-)
-
-SPLIT <- 0.8
-FORMULA <- as.formula(formulas[3])
 
 # split
 nt <- max(edv$t)

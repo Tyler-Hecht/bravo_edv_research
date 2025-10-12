@@ -14,12 +14,12 @@ HI.INPUT.FILE <- "../data/heat_index/regional_hi_data.csv"
 START.DATE <- as.Date("2018-01-01")
 END.DATE <- as.Date("2022-12-31")
 
-COVARIATE <-"temp" # temp or heat.index
-PLOT.OUTPUT.FILE <- paste("../plots/mses_", START.DATE, "_", END.DATE, "_", COVARIATE, ".png", sep = "")
+COVARIATE <- "temp" # temp or heat.index
+PLOT.OUTPUT.FILE <- paste(paste("../plots/mses", COVARIATE, START.DATE, END.DATE, sep = "_"), ".png", sep="")
 
 if (COVARIATE == "temp") {
   X.INPUT.FILE <- TEMP.INPUT.FILE
-} else if (COVARIATE == "heatindex") {
+} else if (COVARIATE == "heat.index") {
   X.INPUT.FILE <- HI.INPUT.FILE
 } else {
   stop(paste("Invalid covariate", COVARIATE))
