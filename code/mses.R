@@ -8,30 +8,29 @@ library(this.path)
 setwd(this.path::here())
 
 EDV.INPUT.FILE <- "../data/edv/regional_edv_data.csv"
-TEMP.INPUT.FILE <- "../data/temp/regional_temp_data.csv"
-HI.INPUT.FILE <- "../data/heat_index/regional_heat_index_data.csv"
 
 START.DATE <- as.Date("2018-01-01")
 END.DATE <- as.Date("2022-12-31")
 
-COVARIATE <- "heat.index" # temp or heat.index
+COVARIATE <- "heat_index" # temp or heat_index
+X.INPUT.FILE <- paste("../data/", COVARIATE, "/regional_", COVARIATE, "_data.csv", sep = "")
 PLOT.OUTPUT.FILE <- paste(paste("../plots/mses/mses", COVARIATE, START.DATE, END.DATE, sep = "_"), ".png", sep="")
+
+FAMILY <- poisson()
 
 USE_YLIM <- T
 YMIN <- 4000
 YMAX <- 23000
 
 if (COVARIATE == "temp") {
-  X.INPUT.FILE <- TEMP.INPUT.FILE
   COVARIATE.FOR.TITLE <- "Temperature"
-} else if (COVARIATE == "heat.index") {
-  X.INPUT.FILE <- HI.INPUT.FILE
+} else if (COVARIATE == "heat_index") {
   COVARIATE.FOR.TITLE <- "Heat Index"
 } else {
   stop(paste("Invalid covariate", COVARIATE))
 }
 
-FAMILY <- poisson()
+
 
 # read in data
 edv <- read.csv(EDV.INPUT.FILE, row.names = 1)

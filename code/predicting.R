@@ -10,8 +10,6 @@ library(gridExtra)
 setwd(this.path::here())
 
 EDV.INPUT.FILE <- "../data/edv/regional_edv_data.csv"
-TEMP.INPUT.FILE <- "../data/temp/regional_temp_data.csv"
-HI.INPUT.FILE <- "../data/heat_index/regional_heat_index_data.csv"
 
 START.DATE <- as.Date("2018-01-01")
 END.DATE <- as.Date("2022-12-31")
@@ -26,25 +24,25 @@ formulas <- c(
 )
 
 SPLIT <- 0.7
-FORMULA.NUM <- 6
+FORMULA.NUM <- 5
 
-COVARIATE <- "temp" # temp or heat.index
+COVARIATE <- "heat_index" # temp or heat_index
+X.INPUT.FILE <- paste("../data/", COVARIATE, "/regional_", COVARIATE, "_data.csv", sep = "")
 PLOT.OUTPUT.FILE <- paste(paste("../plots/predictions/predictions", COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), ".png", sep="")
+MODEL.OUTPUT.FILE <- paste("../data/", COVARIATE, "/", paste(COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), ".RData", sep="")
 
-
+FAMILY <- poisson()
+FORMULA <- as.formula(formulas[FORMULA.NUM])
 
 if (COVARIATE == "temp") {
-  X.INPUT.FILE <- TEMP.INPUT.FILE
   COVARIATE.FOR.TITLE <- "Temperature"
-} else if (COVARIATE == "heat.index") {
-  X.INPUT.FILE <- HI.INPUT.FILE
+} else if (COVARIATE == "heat_index") {
   COVARIATE.FOR.TITLE <- "Heat Index"
 } else {
   stop(paste("Invalid covariate", COVARIATE))
 }
 
-FAMILY <- poisson()
-FORMULA <- as.formula(formulas[FORMULA.NUM])
+
 
 # read in data
 edv <- read.csv(EDV.INPUT.FILE, row.names = 1)
@@ -145,3 +143,5 @@ p <- grid.arrange(
 )
 
 ggsave(PLOT.OUTPUT.FILE, plot = p)
+
+save(model, file = MODEL.OUTPUT.FILE)
