@@ -26,19 +26,19 @@ formulas <- c(
 )
 
 SPLIT <- 0.7
-FORMULA.NUM <- 5
+FORMULA.NUM <- 6
 
-COVARIATE <- "heat.index" # temp or heat.index
+COVARIATE <- "temp" # temp or heat.index
 PLOT.OUTPUT.FILE <- paste(paste("../plots/predictions", COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), ".png", sep="")
 
 
 
 if (COVARIATE == "temp") {
   X.INPUT.FILE <- TEMP.INPUT.FILE
-  COVARIATE.FOR.TITLE = "Temperature"
+  COVARIATE.FOR.TITLE <- "Temperature"
 } else if (COVARIATE == "heat.index") {
   X.INPUT.FILE <- HI.INPUT.FILE
-  COVARIATE.FOR.TITLE = "Heat Index"
+  COVARIATE.FOR.TITLE <- "Heat Index"
 } else {
   stop(paste("Invalid covariate", COVARIATE))
 }
@@ -119,7 +119,7 @@ for (region in 1:10) {
     theme(legend.position="none") +
     geom_line(data = df.region, aes_string(x = "t", y="pred")) +
     geom_ribbon(data = df.region, aes(x=t,ymin=lower,ymax=upper)) +
-    ggtitle(region.name) +
+    ggtitle(sub("\\.", " ", region.name)) +
     theme(plot.title = element_text(size=10))
     
   s <- s + scale_y_continuous(limits = c(0, 1000))
@@ -127,7 +127,7 @@ for (region in 1:10) {
   subplots[[region]] <- s
 }
 
-plot.title = paste("EDV Prediction for Model", FORMULA.NUM, "at Train/Test Split", SPLIT, "Using", COVARIATE.FOR.TITLE, "(", START.DATE, "to", END.DATE, ")")
+plot.title <- paste("EDV Prediction for Model", FORMULA.NUM, "at Train/Test Split", SPLIT, "Using", COVARIATE.FOR.TITLE, "(", START.DATE, "to", END.DATE, ")")
 
 p <- grid.arrange(
   subplots[[1]],
