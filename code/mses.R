@@ -14,8 +14,12 @@ HI.INPUT.FILE <- "../data/heat_index/regional_heat_index_data.csv"
 START.DATE <- as.Date("2018-01-01")
 END.DATE <- as.Date("2022-12-31")
 
-COVARIATE <- "temp" # temp or heat.index
+COVARIATE <- "heat.index" # temp or heat.index
 PLOT.OUTPUT.FILE <- paste(paste("../plots/mses/mses", COVARIATE, START.DATE, END.DATE, sep = "_"), ".png", sep="")
+
+USE_YLIM <- T
+YMIN <- 4000
+YMAX <- 23000
 
 if (COVARIATE == "temp") {
   X.INPUT.FILE <- TEMP.INPUT.FILE
@@ -112,5 +116,9 @@ p <- ggplot(data = df.mses2, mapping = aes(x = split, y = mse, color = formula))
   xlab("Training Data %") +
   ylab("MSE") +
   ggtitle(plot.title)
+
+if (USE_YLIM) {
+  p <- p + ylim(YMIN, YMAX)
+}
 
 ggsave(PLOT.OUTPUT.FILE, plot = p, width = 15, height = 10)
