@@ -8,8 +8,8 @@ library(this.path)
 setwd(this.path::here())
 
 EDV.INPUT.FILE <- "../data/edv/regional_edv_data.csv"
-TEMP.INPUT.FILE <- "../data/temperature/regional_temp_data.csv"
-HI.INPUT.FILE <- "../data/heat_index/regional_hi_data.csv"
+TEMP.INPUT.FILE <- "../data/temp/regional_temp_data.csv"
+HI.INPUT.FILE <- "../data/heat_index/regional_heat_index_data.csv"
 
 START.DATE <- as.Date("2018-01-01")
 END.DATE <- as.Date("2022-12-31")
@@ -66,7 +66,7 @@ edv.train <- subset(edv, t <= nt*SPLIT)
 edv.test <- subset(edv, t > nt*SPLIT)
 
 #train
-model <- glmmTMB(FORMULA, data = edv.train, family = poisson)
+model <- glmmTMB(FORMULA, data = edv.train, family = FAMILY)
 link.inv <- family(model)$linkinv
 
 # predict
