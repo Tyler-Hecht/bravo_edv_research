@@ -15,7 +15,7 @@ START.DATE <- as.Date("2018-01-01")
 END.DATE <- as.Date("2022-12-31")
 
 COVARIATE <- "temp" # temp or heat.index
-PLOT.OUTPUT.FILE <- paste(paste("../plots/mses", COVARIATE, START.DATE, END.DATE, sep = "_"), ".png", sep="")
+PLOT.OUTPUT.FILE <- paste(paste("../plots/mses/mses", COVARIATE, START.DATE, END.DATE, sep = "_"), ".png", sep="")
 
 if (COVARIATE == "temp") {
   X.INPUT.FILE <- TEMP.INPUT.FILE

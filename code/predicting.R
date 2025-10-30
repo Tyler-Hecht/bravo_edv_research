@@ -29,7 +29,7 @@ SPLIT <- 0.7
 FORMULA.NUM <- 6
 
 COVARIATE <- "temp" # temp or heat.index
-PLOT.OUTPUT.FILE <- paste(paste("../plots/predictions", COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), ".png", sep="")
+PLOT.OUTPUT.FILE <- paste(paste("../plots/predictions/predictions", COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), ".png", sep="")
 
 
 
