@@ -4,6 +4,8 @@ library(ggplot2)
 library(dplyr)
 library(Metrics)
 library(this.path)
+library(grid)
+library(gridExtra)
 
 setwd(this.path::here())
 
@@ -23,18 +25,20 @@ formulas <- c(
   "ed.visits ~ sine + cosine + X + (X+sine+cosine+1|region)" # model 6 (full)
 )
 
-SPLIT <- 0.8
-FORMULA.NUM <- 3
+SPLIT <- 0.7
+FORMULA.NUM <- 5
 
-COVARIATE <- "temp" # temp or heat.index
+COVARIATE <- "heat.index" # temp or heat.index
 PLOT.OUTPUT.FILE <- paste(paste("../plots/predictions", COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), ".png", sep="")
 
 
 
 if (COVARIATE == "temp") {
   X.INPUT.FILE <- TEMP.INPUT.FILE
+  COVARIATE.FOR.TITLE = "Temperature"
 } else if (COVARIATE == "heat.index") {
   X.INPUT.FILE <- HI.INPUT.FILE
+  COVARIATE.FOR.TITLE = "Heat Index"
 } else {
   stop(paste("Invalid covariate", COVARIATE))
 }
@@ -123,7 +127,9 @@ for (region in 1:10) {
   subplots[[region]] <- s
 }
 
-p <- gridExtra::grid.arrange(
+plot.title = paste("EDV Prediction for Model", FORMULA.NUM, "at Train/Test Split", SPLIT, "Using", COVARIATE.FOR.TITLE, "(", START.DATE, "to", END.DATE, ")")
+
+p <- grid.arrange(
   subplots[[1]],
   subplots[[2]],
   subplots[[3]],
@@ -134,8 +140,8 @@ p <- gridExtra::grid.arrange(
   subplots[[8]],
   subplots[[9]],
   subplots[[10]],
-  nrow=5, ncol=2)
-
-#subplots[[1]]
+  nrow=5, ncol=2,
+  top = textGrob(plot.title, gp = gpar(fontsize=15))
+)
 
 ggsave(PLOT.OUTPUT.FILE, plot = p)
