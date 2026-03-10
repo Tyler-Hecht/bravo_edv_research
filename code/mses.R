@@ -10,9 +10,10 @@ setwd(this.path::here())
 EDV.INPUT.FILE <- "../data/edv/regional_edv_data.csv"
 
 START.DATE <- as.Date("2018-01-01")
-END.DATE <- as.Date("2022-12-31")
+END.DATE <- as.Date("2025-12-31")
 
-COVARIATE <- "heat_index" # temp or heat_index
+COVARIATE <- "temp" # temp or heat_index
+
 X.INPUT.FILE <- paste("../data/", COVARIATE, "/regional_", COVARIATE, "_data.csv", sep = "")
 PLOT.OUTPUT.FILE <- paste(paste("../plots/mses/mses", COVARIATE, START.DATE, END.DATE, sep = "_"), ".png", sep="")
 

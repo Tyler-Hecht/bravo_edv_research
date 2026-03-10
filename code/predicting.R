@@ -12,7 +12,9 @@ setwd(this.path::here())
 EDV.INPUT.FILE <- "../data/edv/regional_edv_data.csv"
 
 START.DATE <- as.Date("2018-01-01")
-END.DATE <- as.Date("2022-12-31")
+END.DATE <- as.Date("2025-12-31")
+
+COVARIATE <- "temp" # temp or heat_index
 
 formulas <- c(
   "ed.visits ~ sine + cosine + (1|region)", # model 1
@@ -24,9 +26,8 @@ formulas <- c(
 )
 
 SPLIT <- 0.7
-FORMULA.NUM <- 5
+FORMULA.NUM <- 4
 
-COVARIATE <- "heat_index" # temp or heat_index
 X.INPUT.FILE <- paste("../data/", COVARIATE, "/regional_", COVARIATE, "_data.csv", sep = "")
 PLOT.OUTPUT.FILE <- paste(paste("../plots/predictions/predictions", COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), ".png", sep="")
 MODEL.OUTPUT.FILE <- paste("../data/", COVARIATE, "/", paste(COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), ".RData", sep="")
@@ -97,6 +98,19 @@ df.sigma$t = ceiling(as.numeric(row.names(df.sigma)) + nt*SPLIT)
 df <- merge(df.mu, df.sigma)
 
 
+## make prediction data frame
+newdat <- edv.test
+## design matrix (fixed effects)
+mm <- model.matrix(delete.response(terms(model)),newdat)
+## linear predictor (for GLMMs, back-transform this with the
+##  inverse link function (e.g. plogis() for binomial, beta;
+##  exp() for Poisson, negative binomial
+newdat$distance <- drop(mm %*% fixef(model)[["cond"]])
+predvar <- diag(mm %*% vcov(model)[["cond"]] %*% t(mm))
+newdat$SE <- sqrt(predvar) 
+newdat$SE2 <- sqrt(predvar+sigma(model)^2)
+
+
 # plot
 subplots <- list()
 
@@ -104,23 +118,26 @@ for (region in 1:10) {
   region.name <- paste("Region", region, sep='.')
   region.name.mu <- paste(region.name, "mu", sep='.')
   region.name.sigma <- paste(region.name, "sigma", sep='.')
-  
+
   edv.region <- subset(edv, region==region.name)
   edv.region$is.train <- edv.region$t <= nt*SPLIT
   df.region <- df %>% select(region.name.mu, region.name.sigma, "t")
-  df.region["pred"] <- link.inv(df.region[region.name.mu])
-  df.region["lower"] <- link.inv(df.region[region.name.mu] - z*df.region[region.name.sigma])
-  df.region["upper"] <- link.inv(df.region[region.name.mu] + z*df.region[region.name.sigma])
+  
+  newdat.region <- newdat[(newdat$region == region.name),]
+  newdat.region$pred <- df.region[region.name.mu][[1]]
+  newdat.region$pred2 <- exp(newdat.region$pred)
+  newdat.region$low <- exp(newdat.region$pred-2*newdat.region$SE2)
+  newdat.region$high <- exp(newdat.region$pred+2*newdat.region$SE2)
   
   s <- ggplot() +
-    geom_point(data = edv.region, aes(x=t, y=ed.visits, color=is.train), size = 1) +
     theme(legend.position="none") +
-    geom_line(data = df.region, aes_string(x = "t", y="pred")) +
-    geom_ribbon(data = df.region, aes(x=t,ymin=lower,ymax=upper)) +
+    geom_ribbon(data = newdat.region, aes(x=t,ymin=low,ymax=high), fill = "orange", alpha = 0.5) +
+    geom_point(data = edv.region, aes(x=t, y=ed.visits, color=is.train), size = 0.75) +
+    geom_line(data = newdat.region, aes(x=t, y=pred2), size = 0.25, color = "gray1") +
     ggtitle(sub("\\.", " ", region.name)) +
     theme(plot.title = element_text(size=10))
-    
-  s <- s + scale_y_continuous(limits = c(0, 1000))
+  
+  s <- s + coord_cartesian(ylim = c(0, 1000))
   
   subplots[[region]] <- s
 }
@@ -145,3 +162,4 @@ p <- grid.arrange(
 ggsave(PLOT.OUTPUT.FILE, plot = p)
 
 save(model, file = MODEL.OUTPUT.FILE)
+
