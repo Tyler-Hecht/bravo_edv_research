@@ -169,7 +169,7 @@ p <- grid.arrange(
   top = textGrob(plot.title, gp = gpar(fontsize=15))
 )
 
-# don't save here, use prediction_plots.ipynb for nicer plot
+# don't save here, use predicting_plots.ipynb for nicer plot
 # ggsave(PLOT.OUTPUT.FILE, plot = p)
 
 save(model, file = MODEL.OUTPUT.FILE)
