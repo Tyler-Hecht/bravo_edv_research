@@ -31,6 +31,11 @@ FORMULA.NUM <- 5
 X.INPUT.FILE <- paste("../data/", COVARIATE, "/regional_", COVARIATE, "_data.csv", sep = "")
 PLOT.OUTPUT.FILE <- paste(paste("../plots/predictions/predictions", COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), ".png", sep="")
 MODEL.OUTPUT.FILE <- paste("../data/", COVARIATE, "/", paste(COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), ".RData", sep="")
+PLOT.DATA.FOLDER <- paste("../data/", COVARIATE, "/", paste(COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep="_"), sep = "")
+
+if (!dir.exists(PLOT.DATA.FOLDER)) {
+  dir.create(PLOT.DATA.FOLDER)
+}
 
 FAMILY <- poisson()
 FORMULA <- as.formula(formulas[FORMULA.NUM])
@@ -97,6 +102,7 @@ df.sigma$t = ceiling(as.numeric(row.names(df.sigma)) + nt*SPLIT)
 
 df <- merge(df.mu, df.sigma)
 
+# from https://bbolker.github.io/mixedmodels-misc/glmmFAQ.html
 
 ## make prediction data frame
 newdat <- edv.test
@@ -128,6 +134,9 @@ for (region in 1:10) {
   newdat.region$pred2 <- exp(newdat.region$pred)
   newdat.region$low <- exp(newdat.region$pred-2*newdat.region$SE2)
   newdat.region$high <- exp(newdat.region$pred+2*newdat.region$SE2)
+  
+  write.csv(newdat.region, paste(PLOT.DATA.FOLDER, "/region", region, "_interval.csv", sep = ""))
+  write.csv(edv.region, paste(PLOT.DATA.FOLDER, "/region", region, "_data.csv", sep = ""))
   
   s <- ggplot() +
     theme(legend.position="none") +
