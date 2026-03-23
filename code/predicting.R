@@ -135,6 +135,7 @@ for (region in 1:10) {
   newdat.region$low <- exp(newdat.region$pred-2*newdat.region$SE2)
   newdat.region$high <- exp(newdat.region$pred+2*newdat.region$SE2)
   
+  # save data for plotting in Python
   write.csv(newdat.region, paste(PLOT.DATA.FOLDER, "/region", region, "_interval.csv", sep = ""))
   write.csv(edv.region, paste(PLOT.DATA.FOLDER, "/region", region, "_data.csv", sep = ""))
   
@@ -168,7 +169,8 @@ p <- grid.arrange(
   top = textGrob(plot.title, gp = gpar(fontsize=15))
 )
 
-ggsave(PLOT.OUTPUT.FILE, plot = p)
+# don't save here, use prediction_plots.ipynb for nicer plot
+# ggsave(PLOT.OUTPUT.FILE, plot = p)
 
 save(model, file = MODEL.OUTPUT.FILE)
 

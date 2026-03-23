@@ -10,12 +10,13 @@ setwd(this.path::here())
 EDV.INPUT.FILE <- "../data/edv/regional_edv_data.csv"
 
 START.DATE <- as.Date("2018-01-01")
-END.DATE <- as.Date("2025-12-31")
+END.DATE <- as.Date("2022-12-31")
 
-COVARIATE <- "temp" # temp or heat_index
+COVARIATE <- "heat_index" # temp or heat_index
 
 X.INPUT.FILE <- paste("../data/", COVARIATE, "/regional_", COVARIATE, "_data.csv", sep = "")
 PLOT.OUTPUT.FILE <- paste(paste("../plots/mses/mses", COVARIATE, START.DATE, END.DATE, sep = "_"), ".png", sep="")
+PLOT.DATA.FILE <- paste("../data/", COVARIATE, "/mses_", paste(COVARIATE, START.DATE, END.DATE, "data.csv", sep = "_"), sep = "")
 
 FAMILY <- poisson()
 
@@ -100,6 +101,9 @@ df.mses2 <- pivot_longer(df.mses2, cols = colnames(df.mses2)[-1], names_to = "fo
 
 plot.title <- paste("MSES Using", COVARIATE.FOR.TITLE, "from", START.DATE, "to", END.DATE)
 
+# save data for plotting in Python
+write.csv(df.mses2, PLOT.DATA.FILE)
+
 p <- ggplot(data = df.mses2, mapping = aes(x = split, y = mse, color = formula)) + 
   geom_line(linewidth = 1.5, alpha = 0.5) +
   geom_point(size = 3, alpha = 0.5) +
@@ -121,4 +125,5 @@ if (USE_YLIM) {
   p <- p + ylim(YMIN, YMAX)
 }
 
-ggsave(PLOT.OUTPUT.FILE, plot = p, width = 15, height = 10)
+# don't save here, use mses_plots.ipynb for nicer plots
+# ggsave(PLOT.OUTPUT.FILE, plot = p, width = 15, height = 10)
