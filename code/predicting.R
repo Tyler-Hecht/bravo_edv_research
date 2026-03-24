@@ -14,7 +14,7 @@ EDV.INPUT.FILE <- "../data/edv/regional_edv_data.csv"
 START.DATE <- as.Date("2018-01-01")
 END.DATE <- as.Date("2022-12-31")
 
-COVARIATE <- "heat_index" # temp or heat_index
+COVARIATE <- "temp" # temp or heat_index
 
 formulas <- c(
   "ed.visits ~ sine + cosine + (1|region)", # model 1
@@ -26,7 +26,7 @@ formulas <- c(
 )
 
 SPLIT <- 0.7
-FORMULA.NUM <- 5
+FORMULA.NUM <- 6
 
 X.INPUT.FILE <- paste("../data/", COVARIATE, "/regional_", COVARIATE, "_data.csv", sep = "")
 PLOT.OUTPUT.FILE <- paste(paste("../plots/predictions/predictions", COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), ".png", sep="")
