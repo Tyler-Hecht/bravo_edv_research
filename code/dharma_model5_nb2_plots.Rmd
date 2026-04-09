@@ -1,0 +1,142 @@
+---
+title: "DHARMa Residual Diagnostics for Model 5 (NB2)"
+output: html_document
+---
+
+```{r setup, message=FALSE, warning=FALSE}
+library(glmmTMB)
+library(DHARMa)
+library(tidyr)
+library(dplyr)
+library(this.path)
+
+setwd(this.path::here())
+
+EDV.INPUT.FILE <- "../data/edv/regional_edv_data.csv"
+FORMULA.NUM <- 5
+FAMILY.NAME <- "nbinom2"
+FAMILY <- nbinom2()
+
+formulas <- c(
+    "ed.visits ~ sine + cosine + (1|region)",
+    "ed.visits ~ sine + cosine + (sine+cosine+1|region)",
+    "ed.visits ~ sine + cosine + X + (1|region)",
+    "ed.visits ~ sine + cosine + X + (X+1|region)",
+    "ed.visits ~ sine + cosine + X + (sine+cosine+1|region)",
+    "ed.visits ~ sine + cosine + X + (X+sine+cosine+1|region)"
+)
+
+FORMULA <- as.formula(formulas[FORMULA.NUM])
+
+covariate.settings <- list(
+    list(
+        covariate = "temp",
+        start_date = as.Date("2018-01-01"),
+        end_date = as.Date("2025-12-31")
+    ),
+    list(
+        covariate = "heat_index",
+        start_date = as.Date("2018-01-01"),
+        end_date = as.Date("2022-12-31")
+    )
+)
+
+OUTPUT.BASE <- "../plots/dharma_residuals"
+if (!dir.exists(OUTPUT.BASE)) dir.create(OUTPUT.BASE, recursive = TRUE)
+```
+
+## Generate and save DHARMa plots
+
+```{r diagnostics, message=FALSE, warning=FALSE}
+run_dharma_plots <- function(setting) {
+    COVARIATE <- setting$covariate
+    START.DATE <- setting$start_date
+    END.DATE <- setting$end_date
+
+    X.INPUT.FILE <- paste0("../data/", COVARIATE, "/regional_", COVARIATE, "_data.csv")
+    OUTPUT.FOLDER <- file.path(
+        OUTPUT.BASE,
+        paste(COVARIATE, START.DATE, END.DATE, FAMILY.NAME, paste0("model", FORMULA.NUM), sep = "_")
+    )
+    if (!dir.exists(OUTPUT.FOLDER)) dir.create(OUTPUT.FOLDER, recursive = TRUE)
+
+    edv <- read.csv(EDV.INPUT.FILE, row.names = 1)
+    edv <- edv[(START.DATE <= as.Date(rownames(edv))) & (as.Date(rownames(edv)) <= END.DATE), ]
+    edv$t <- 1:nrow(edv)
+
+    X <- read.csv(X.INPUT.FILE, row.names = 1)
+    X <- X[(START.DATE <= as.Date(rownames(X))) & (as.Date(rownames(X)) <= END.DATE), ]
+
+    X <- pivot_longer(X, cols = colnames(X), names_to = "region", values_to = COVARIATE)
+    edv <- pivot_longer(edv, cols = colnames(edv)[1:10], names_to = "region", values_to = "ed.visits")
+
+    edv$X <- X[[COVARIATE]]
+    phi <- 2 * pi / 365.25
+    edv$sine <- sin(phi * edv$t)
+    edv$cosine <- cos(phi * edv$t)
+    edv$region <- factor(edv$region)
+
+    model <- glmmTMB(FORMULA, data = edv, family = FAMILY)
+    sim_res <- simulateResiduals(fittedModel = model, plot = FALSE)
+
+    # This is the standard DHARMa multi-panel plot, including QQ/uniformity style diagnostics
+    png(
+        filename = file.path(OUTPUT.FOLDER, paste0(COVARIATE, "_model", FORMULA.NUM, "_", FAMILY.NAME, "_dharma_default_plot.png")),
+        width = 1600, height = 1200, res = 180
+    )
+    plot(sim_res)
+    dev.off()
+
+    # Optional extra base-R style diagnostic plots from DHARMa
+    png(
+        filename = file.path(OUTPUT.FOLDER, paste0(COVARIATE, "_model", FORMULA.NUM, "_", FAMILY.NAME, "_residual_vs_predictor.png")),
+        width = 1600, height = 1200, res = 180
+    )
+    plotResiduals(sim_res, form = edv$X)
+    dev.off()
+
+    png(
+        filename = file.path(OUTPUT.FOLDER, paste0(COVARIATE, "_model", FORMULA.NUM, "_", FAMILY.NAME, "_residual_vs_time.png")),
+        width = 1600, height = 1200, res = 180
+    )
+    plotResiduals(sim_res, form = edv$t)
+    dev.off()
+
+    save(model, sim_res,
+        file = file.path(OUTPUT.FOLDER, paste0(COVARIATE, "_model", FORMULA.NUM, "_", FAMILY.NAME, "_diagnostics.RData"))
+    )
+
+    cat("Saved DHARMa plots for", COVARIATE, "to", OUTPUT.FOLDER, "\n")
+}
+
+invisible(lapply(covariate.settings, run_dharma_plots))
+```
+
+## Notes
+
+```{r notes, echo=FALSE}
+cat("This file fits Model 5 with nbinom2 for both temperature and heat index.\n")
+cat("It saves the default DHARMa plot produced by plot(sim_res).\n")
+cat("Temperature uses data through 2025-12-31, while heat index uses data through 2022-12-31.\n")
+cat("Outputs are saved under ../plots/dharma_residuals/.\n")
+```
+
+```{r}
+env <- new.env()
+load("../plots/dharma_residuals/heat_index_2018-01-01_2022-12-31_nbinom2_model5/heat_index_model5_nbinom2_diagnostics.RData", envir = env)
+ls(env)
+env$sim_res
+testUniformity(env$sim_res)
+testDispersion(env$sim_res)
+testZeroInflation(env$sim_res)
+```
+
+```{r}
+env <- new.env()
+load("../plots/dharma_residuals/temp_2018-01-01_2025-12-31_nbinom2_model5/temp_model5_nbinom2_diagnostics.RData", envir = env)
+ls(env)
+env$sim_res
+testUniformity(env$sim_res)
+testDispersion(env$sim_res)
+testZeroInflation(env$sim_res)
+```

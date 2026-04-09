@@ -1,0 +1,129 @@
+---
+title: "EDV GLMM Family Comparison"
+output: html_document
+---
+
+```{r setup, message=FALSE, warning=FALSE}
+library(glmmTMB)
+library(tidyr)
+library(dplyr)
+library(Metrics)
+library(this.path)
+
+setwd(this.path::here())
+
+EDV.INPUT.FILE <- "../data/edv/regional_edv_data.csv"
+
+START.DATE <- as.Date("2018-01-01")
+END.DATE <- as.Date("2022-12-31")
+
+COVARIATE <- "heat_index" # temp or heat_index
+
+formulas <- c(
+    "ed.visits ~ sine + cosine + (1|region)",
+    "ed.visits ~ sine + cosine + (sine+cosine+1|region)",
+    "ed.visits ~ sine + cosine + X + (1|region)",
+    "ed.visits ~ sine + cosine + X + (X+1|region)",
+    "ed.visits ~ sine + cosine + X + (sine+cosine+1|region)",
+    "ed.visits ~ sine + cosine + X + (X+sine+cosine+1|region)"
+)
+
+SPLIT <- 0.7
+
+X.INPUT.FILE <- paste("../data/", COVARIATE, "/regional_", COVARIATE, "_data.csv", sep = "")
+RESULTS.DATA.FOLDER <- paste(
+    "../data/",
+    COVARIATE,
+    "/",
+    paste(COVARIATE, START.DATE, END.DATE, SPLIT, "family_comparison", sep = "_"),
+    sep = ""
+)
+
+if (!dir.exists(RESULTS.DATA.FOLDER)) {
+    dir.create(RESULTS.DATA.FOLDER, recursive = TRUE)
+}
+
+FAMILIES <- list(
+    poisson = poisson(),
+    negbinom2 = nbinom2()
+)
+```
+
+```{r prepare-data}
+# read in data
+edv <- read.csv(EDV.INPUT.FILE, row.names = 1)
+edv <- edv[(START.DATE <= as.Date(rownames(edv))) & (as.Date(rownames(edv)) <= END.DATE), ]
+edv$t <- 1:nrow(edv)
+
+X <- read.csv(X.INPUT.FILE, row.names = 1)
+X <- X[(START.DATE <= as.Date(rownames(X))) & (as.Date(rownames(X)) <= END.DATE), ]
+
+# wide to long format
+X <- pivot_longer(X, cols = colnames(X), names_to = "region", values_to = COVARIATE)
+edv <- pivot_longer(edv, cols = colnames(edv)[1:10], names_to = "region", values_to = "ed.visits")
+
+# add columns needed for model
+edv$X <- X[[COVARIATE]]
+phi <- 2 * pi / 365.25
+edv$sine <- sin(phi * edv$t)
+edv$cosine <- cos(phi * edv$t)
+
+# split
+nt <- max(edv$t)
+edv.train <- subset(edv, t <= nt * SPLIT)
+edv.test <- subset(edv, t > nt * SPLIT)
+```
+
+```{r fit-models}
+comparison.results <- data.frame()
+
+for (family.name in names(FAMILIES)) {
+    current.family <- FAMILIES[[family.name]]
+
+    for (model.index in seq_along(formulas)) {
+        current.formula <- as.formula(formulas[model.index])
+
+        model <- glmmTMB(current.formula, data = edv.train, family = current.family)
+
+        predictions <- predict(model, newdata = edv.test, type = "response")
+        actual <- edv.test$ed.visits
+
+        mse.value <- mse(actual = actual, predicted = predictions)
+        bic.value <- BIC(model)
+
+        model.metrics <- data.frame(
+            family = family.name,
+            model_index = model.index,
+            mse = mse.value,
+            bic = bic.value
+        )
+
+        comparison.results <- bind_rows(comparison.results, model.metrics)
+
+        write.csv(
+            data.frame(
+                t = edv.test$t,
+                region = edv.test$region,
+                actual = actual,
+                prediction = predictions
+            ),
+            file = file.path(RESULTS.DATA.FOLDER, paste0("predictions_", family.name, "_model_", model.index, ".csv")),
+            row.names = FALSE
+        )
+    }
+}
+
+comparison.results <- comparison.results %>%
+    group_by(family) %>%
+    mutate(delta_bic = bic - min(bic, na.rm = TRUE)) %>%
+    ungroup() %>%
+    arrange(family, model_index)
+
+write.csv(
+    comparison.results,
+    file = file.path(RESULTS.DATA.FOLDER, "model_family_metrics.csv"),
+    row.names = FALSE
+)
+
+comparison.results
+```
