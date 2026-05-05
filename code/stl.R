@@ -24,7 +24,7 @@ X <- X[(START.DATE <= as.Date(rownames(X))) & (as.Date(rownames(X)) <= END.DATE)
 
 X.region <- X[[paste("Region.", REGION, sep = "")]]
 
-decomp = stl(
+decomp <- stl(
         ts(X.region, frequency = 365, start = decimal_date(START.DATE)),
         s.window = "periodic")
 

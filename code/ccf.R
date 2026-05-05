@@ -31,17 +31,17 @@ for (region in colnames(X)) {
     edv.region <- edv[[region]]
     X.region <- X[[region]]
 
-    edv.region.r = stl(
+    edv.region.r <- stl(
         ts(edv.region, frequency = 365, start = decimal_date(START.DATE)),
         s.window = "periodic"
     )$time.series[,"remainder"]
 
-    X.region.r = stl(
+    X.region.r <- stl(
         ts(as.vector(X.region), frequency = 365, start = decimal_date(START.DATE)),
         s.window = "periodic"
     )$time.series[,"remainder"]
 
-    cc = ccf(edv.region.r, X.region.r, plot = F)
+    cc <- ccf(edv.region.r, X.region.r, plot = F)
 
     output[region] <- drop(cc$acf)
 }

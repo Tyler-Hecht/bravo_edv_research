@@ -102,7 +102,7 @@ df.mses2 <- pivot_longer(df.mses2, cols = colnames(df.mses2)[-1], names_to = "fo
 plot.title <- paste("MSES Using", COVARIATE.FOR.TITLE, "from", START.DATE, "to", END.DATE)
 
 # save data for plotting in Python
-write.csv(df.mses2, PLOT.DATA.FILE)
+# write.csv(df.mses2, PLOT.DATA.FILE)
 
 p <- ggplot(data = df.mses2, mapping = aes(x = split, y = mse, color = formula)) + 
   geom_line(linewidth = 1.5, alpha = 0.5) +
