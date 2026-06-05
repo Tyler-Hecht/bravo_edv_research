@@ -7,13 +7,17 @@ setwd(this.path::here())
 START.DATE <- as.Date("2018-01-01")
 END.DATE <- as.Date("2022-12-31")
 
-COVARIATE <- "heat_index" # temp or heat_index
+COVARIATE <- "temp" # temp or heat_index
+
+FAMILY <- "nbinom2" # poisson or nbinom2
 
 SPLIT <- 0.7
-FORMULA.NUM <- 5
+FORMULA.NUM <- 6
 
-MODEL.FILE <- paste("../data/", COVARIATE, "/", paste(COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), ".RData", sep="")
-ICC.DATA.FILE <- paste("../data/", COVARIATE, "/", paste(COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), "_icc.csv", sep="")
+NBINOM <- ifelse(FAMILY == "nbinom2", "_nbinom2", "")
+
+MODEL.FILE <- paste("../data/", COVARIATE, "/", paste(COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), NBINOM, ".RData", sep="")
+ICC.DATA.FILE <- paste("../data/", COVARIATE, "/", paste(COVARIATE, START.DATE, END.DATE, SPLIT, FORMULA.NUM, sep = "_"), NBINOM, "_icc.csv", sep="")
 
 load(MODEL.FILE)
 
